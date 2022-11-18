@@ -35,6 +35,8 @@ struct state
     glm::vec3 L;        // angular momentum
 };
 
+const glm::vec3 k_hexahedron_mesh_color = {0.8f, 0.25f, 0.25f};
+
 
 
 // OpenGL -------------------------------------------------------------------//

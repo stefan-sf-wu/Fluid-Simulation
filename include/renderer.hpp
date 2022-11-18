@@ -101,7 +101,7 @@ private:
     GLuint tetrahedron_vbo;
 
     GLuint hexahedron_vao;
-    GLuint hexahedron_vbo;
+    GLuint hexahedron_vbo[2];
     GLuint hexahedron_ibo;
     GLuint hexahedron_color;
 
@@ -161,34 +161,44 @@ public:
 
         // tetrahedron
         glGenVertexArrays(1, &tetrahedron_vao);
+        glGenBuffers(1, &tetrahedron_vbo);
+        
         glBindVertexArray(tetrahedron_vao);
-            glGenBuffers(1, &tetrahedron_vbo);
             glBindBuffer(GL_ARRAY_BUFFER, tetrahedron_vbo);
             glBufferData(GL_ARRAY_BUFFER, sizeof(GLObj::tetrahedron), GLObj::tetrahedron, GL_STATIC_DRAW);
         
         // hexahedron
         glGenVertexArrays(1, &hexahedron_vao);
-        glBindVertexArray(hexahedron_vao);
-            glGenBuffers(1, &hexahedron_vbo);
-            glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo);
-            glBufferData(GL_ARRAY_BUFFER, sovler.get_hexahedron_vertices().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_vertices()[0]), GL_STATIC_DRAW);
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glGenBuffers(2, hexahedron_vbo);
+        glGenBuffers(1, &hexahedron_ibo);
 
-            glGenBuffers(1, &hexahedron_ibo);
+        glBindVertexArray(hexahedron_vao);
+            // glGenBuffers(1, &hexahedron_vbo[0]);
+            glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[0]);
+            glBufferData(GL_ARRAY_BUFFER, sovler.get_hexahedron_vertices().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_vertices()[0]), GL_STATIC_DRAW);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+            glEnableVertexAttribArray(0);
+
+            // glGenBuffers(1, &hexahedron_color);
+            glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[1]);
+            glBufferData(GL_ARRAY_BUFFER, sovler.get_hexahedron_color().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_color()[0]), GL_STATIC_DRAW);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+            glEnableVertexAttribArray(1);
+
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hexahedron_ibo);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, sovler.get_hexahedron_indices().size() * sizeof(unsigned int), &sovler.get_hexahedron_indices()[0], GL_STATIC_DRAW);
 
         // ground mesh
         glGenVertexArrays(1, &ground_vao);
+        glGenBuffers(1, &ground_mesh_vbo);
+        glGenBuffers(1, &ground_mesh_ibo);
+
         glBindVertexArray(ground_vao);
-            glGenBuffers(1, &ground_mesh_vbo);
             glBindBuffer(GL_ARRAY_BUFFER, ground_mesh_vbo);
             glBufferData(GL_ARRAY_BUFFER, GLObj::ground_mesh_vertices.size()*sizeof(glm::vec3), glm::value_ptr(GLObj::ground_mesh_vertices[0]), GL_STATIC_DRAW);
             glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-                
-            glGenBuffers(1, &ground_mesh_ibo);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);  
+            
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ground_mesh_ibo);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLObj::ground_mesh_indices.size()*sizeof(glm::uvec4), glm::value_ptr(GLObj::ground_mesh_indices[0]), GL_STATIC_DRAW);
 
@@ -215,7 +225,7 @@ public:
             if (timer.is_time_to_draw()) 
             {
                 timer.update_next_display_time();
-                glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo);
+                glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[0]);
                 glBufferSubData(GL_ARRAY_BUFFER, 0, sovler.get_hexahedron_vertices().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_vertices()[0]));
                 draw();
             }
@@ -231,11 +241,13 @@ public:
         // glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // glEnable(GL_DEPTH_TEST);
+        glEnable(GL_DEPTH_TEST);
 
         // Set view matrix
-        view = glm::lookAt(glm::vec3(camX, camY, camZ), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 0.0, 1.0));
+        view = glm::lookAt(glm::vec3(camX, camY, camZ), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 0.0, 2.0));
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        model = glm::mat4(1.0f);
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
         // render ground mesh
         glBindVertexArray(ground_vao);
@@ -246,19 +258,15 @@ public:
         glBindVertexArray(hexahedron_vao);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hexahedron_ibo);
             glDrawElements(GL_TRIANGLES, sovler.get_hexahedron_indices().size(), GL_UNSIGNED_INT, (void*)0);
-
+ 
         // render tetrahedron
         glBindVertexArray(tetrahedron_vao);
             glBindBuffer(GL_ARRAY_BUFFER, tetrahedron_vbo);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);   
             glEnableVertexAttribArray(0);
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-            glEnableVertexAttribArray(1);
-            model = glm::mat4(1.0f);
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
             glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        // glDisable(GL_DEPTH_TEST);
+        glDisable(GL_DEPTH_TEST);
         glfwSwapBuffers(window);
     }
 

@@ -50,6 +50,11 @@ public:
         return rigid_hexahedron.get_indices(); 
     }
 
+    std::vector<glm::vec3> &get_hexahedron_color()
+    {
+        return rigid_hexahedron.get_color();
+    }
+
     ~Solver()
     {
     };
@@ -57,7 +62,7 @@ private:
 
     void compute_next_state_ex_euler()
     {
-        rigid_hexahedron.get_curr_state().x += glm::vec3({0, 0, -2});
+        rigid_hexahedron.get_curr_state().x += glm::vec3({0, 0, 0});
     }
 
     void compute_next_state_im_euler()
