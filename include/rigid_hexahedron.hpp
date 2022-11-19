@@ -2,6 +2,7 @@
 #define RIGID_HEXAHEDRON_HPP_
 
 #include <vector>
+#include <cmath>
 
 #include <glm/glm.hpp>
 #include <omp.h>
@@ -12,9 +13,11 @@ class Rigid_Hexahedron
 {
 private:
     state curr_state;
-    state curr_state_dt;
+    // state curr_state_dt;
     
     std::vector<glm::vec3> vertices;        // relative position of vertices of hexahedron to com 
+
+    glm::mat3 I_0;    // moment of inertia tensor for hexahedron
 
     std::vector<glm::vec3> mesh_vertices;
     std::vector<unsigned int> mesh_indices;
@@ -23,17 +26,20 @@ private:
 public:
     Rigid_Hexahedron()
     {
-        curr_state.x = {k_world_edge_size * 0.5f, k_world_edge_size * 0.5f, k_world_edge_size * 0.8f};
-
-        /** TODO: tentative rotation matrix **/
-        curr_state.R = glm::mat3({1, 0, 0}, {0, 1, 0}, {0, 0, 1});
-
         float w = k_world_edge_size/6;
-        float h = k_world_edge_size/3; 
-        float c = k_world_edge_size/7;
-        build_rigid_hexahedron_vertices(w, h, c);
+        float l = k_world_edge_size/3; 
+        float h = k_world_edge_size/7;
+        build_vertices(w, l, h);
+        build_moment_of_inertia_matrix(w, l, h);
 
-        build_rigid_hexahedron_mesh();
+        build_mesh();
+
+        // initialize the state
+        curr_state.x = k_hexahedron_init_position;
+        curr_state.R = k_hexahedron_init_rotation_matrix;
+        curr_state.P = k_hexahedron_init_velocity * k_hexahedron_mass;
+        curr_state.L = I_0 * k_hexahedron_init_angular_velocity;
+                
     };
 
     void update_mesh_vertices()
@@ -41,17 +47,12 @@ public:
         int i;
         #pragma parallel for private(i)
         for(i = 0; i < vertices.size(); i++) { mesh_vertices[i] = transform_phy2gl(curr_state.x + curr_state.R * vertices[i]); }
-
-        print_vec(curr_state.x, "cuur_state.x");
-        print_vec(transform_phy2gl(curr_state.x), "transformed");
     }
 
     std::vector<glm::vec3> &get_vertices() { return mesh_vertices; }
-
     std::vector<unsigned int> &get_indices() { return mesh_indices; }
-
     std::vector<glm::vec3> &get_color() { return mesh_color; }
-
+    glm::mat3 &get_moment_of_inertia() { return I_0; }
     state &get_curr_state() { return curr_state; }
 
     void set_curr_state(state st) { curr_state = st; }
@@ -61,7 +62,16 @@ public:
     };
 
 private:
-void build_rigid_hexahedron_mesh()
+void build_moment_of_inertia_matrix(float w, float l, float h)
+{
+    I_0 = 
+    {
+        {k_hexahedron_mass / 12 * (w * w + h * h), 0.0f, 0.0f},
+        {0.0f, k_hexahedron_mass / 12 * (w * w + l * l), 0.0f},
+        {0.0f, 0.0f, k_hexahedron_mass / 12 * (l * l + h * h)},
+    };
+}
+void build_mesh()
 {
     mesh_vertices.resize(vertices.size()); 
 
@@ -81,17 +91,17 @@ void build_rigid_hexahedron_mesh()
     for(int i = 0; i < mesh_vertices.size(); i++) { mesh_color.push_back(k_hexahedron_mesh_color); }
 }
 
-void build_rigid_hexahedron_vertices(float w, float h, float c)
+void build_vertices(float w, float l, float h)
 {
-    w /= 2; h /= 2; c /= 2;
-    vertices.push_back({-w, -h, -c});
-    vertices.push_back({+w, -h, -c});
-    vertices.push_back({-w, +h, -c});
-    vertices.push_back({+w, +h, -c});
-    vertices.push_back({-w, -h, +c});
-    vertices.push_back({+w, -h, +c});
-    vertices.push_back({-w, +h, +c});
-    vertices.push_back({+w, +h, +c});
+    w /= 2; l /= 2; h /= 2;
+    vertices.push_back({-w, -l, -h});
+    vertices.push_back({+w, -l, -h});
+    vertices.push_back({-w, +l, -h});
+    vertices.push_back({+w, +l, -h});
+    vertices.push_back({-w, -l, +h});
+    vertices.push_back({+w, -l, +h});
+    vertices.push_back({-w, +l, +h});
+    vertices.push_back({+w, +l, +h});
 }
 };
 

@@ -59,10 +59,13 @@ public:
     {
     };
 private:
-
     void compute_next_state_ex_euler()
     {
-        rigid_hexahedron.get_curr_state().x += glm::vec3({0, 0, 0});
+        state curr_state = rigid_hexahedron.get_curr_state();
+        state_dt curr_state_dt = F(curr_state, k_time_step);
+        curr_state += curr_state_dt * k_time_step;
+        curr_state.R = normalize_matrix(curr_state.R);
+        rigid_hexahedron.set_curr_state(curr_state);
     }
 
     void compute_next_state_im_euler()
@@ -73,6 +76,28 @@ private:
     void compute_next_state_rk2()
     {
 
+    }
+
+    state_dt F(state st, float h)
+    {
+        state_dt st_dt;
+
+        st_dt.v = st.P / k_hexahedron_mass;
+
+        glm::mat3 moment_of_inertia_inverse = st.R * glm::inverse(rigid_hexahedron.get_moment_of_inertia()) * glm::transpose(st.R);
+        glm::vec3 omega = moment_of_inertia_inverse * st.L;
+        glm::mat3 omega_star =
+        {
+            {0.0f, -omega[2], omega[1]}, 
+            {omega[2], 0.0f, -omega[0]},
+            {-omega[1], omega[0], 0.0f}
+        };
+        st_dt.R_dt = omega_star * st.R;
+
+        st_dt.P_dt = glm::vec3({0, 0, 0}); // sum of forces
+        st_dt.L_dt = glm::vec3({0, 0, 0}); // sum of torques
+
+        return st_dt;
     }
 };
 

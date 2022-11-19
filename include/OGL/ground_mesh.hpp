@@ -10,7 +10,7 @@ namespace GLObj
 {
 
 const float slices = 20;
-const float ground_mesh_edge_size = 2.0f;
+const float ground_mesh_edge_size = 3.0f;
 const glm::vec3 ground_mesh_color = {1.0f, 1.0f, 1.0f};
 
 std::vector<glm::vec3> ground_mesh_vertices;
@@ -38,8 +38,8 @@ void build_ground_mesh()
             row1 =    j  * (slices+1);
             row2 = (j+1) * (slices+1);
 
-            ground_mesh_indices.push_back(glm::uvec4(row1+i, row1+i+1, row1+i+1, row2+i+1));
-            ground_mesh_indices.push_back(glm::uvec4(row2+i+1, row2+i, row2+i, row1+i));
+            ground_mesh_indices.push_back(glm::uvec4(row1+i,    row1+i+1,   row1+i+1,   row2+i+1));
+            ground_mesh_indices.push_back(glm::uvec4(row2+i+1,  row2+i,     row2+i,     row1+i));
         }
     }
 }
