@@ -5,6 +5,8 @@
 #include <iostream>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <omp.h>
 
 #include "common.hpp"
@@ -62,23 +64,29 @@ private:
     void compute_next_state_ex_euler()
     {
         state curr_state = rigid_hexahedron.get_curr_state();
-        state_dt curr_state_dt = F(curr_state, k_time_step);
-        curr_state += curr_state_dt * k_time_step;
-        curr_state.R = normalize_matrix(curr_state.R);
-        rigid_hexahedron.set_curr_state(curr_state);
+        state_dt curr_state_dt = F(curr_state);
+
+        state next_state = curr_state + curr_state_dt * k_time_step;
+        next_state.R = normalize_matrix_by_row(next_state.R);
+        rigid_hexahedron.set_curr_state(next_state);
     }
 
     void compute_next_state_im_euler()
     {
-
     }
 
     void compute_next_state_rk2()
     {
+        state curr_state = rigid_hexahedron.get_curr_state();
+        state_dt k1 = F(curr_state);
+        state_dt k2 = F(curr_state + k1 * 0.5f * k_time_step);
 
-    }
+        state next_state = curr_state + k2 * k_time_step;
+        next_state.R = normalize_matrix_by_row(next_state.R);
+        rigid_hexahedron.set_curr_state(next_state);
+    }   
 
-    state_dt F(state st, float h)
+    state_dt F(state st)
     {
         state_dt st_dt;
 

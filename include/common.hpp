@@ -23,7 +23,7 @@ enum integrator
 {
     ex_euler, im_euler, rk2
 };
-const integrator integration_method  = integrator::ex_euler;
+const integrator integration_method  = integrator::rk2;
 
 // Rigid Body -------------------------------------------------------------------//
 glm::mat3 rotation_matrix(float beta, float gamma, float alpha)
@@ -45,7 +45,7 @@ glm::mat3 rotation_matrix(float beta, float gamma, float alpha)
     return r;
 }
 
-inline glm::mat3 normalize_matrix(glm::mat3 mat)
+inline glm::mat3 normalize_matrix_by_row(glm::mat3 mat)
 {
     return 
     {
@@ -59,7 +59,7 @@ const float k_hexahedron_mass = 12; // kg
 const glm::vec3 k_hexahedron_init_position = {k_world_edge_size * 0.5f, k_world_edge_size * 0.5f, k_world_edge_size * 0.8f};
 const glm::vec3 k_hexahedron_init_velocity = {0.0f, 0.0f, 0.0f};
 const glm::mat3 k_hexahedron_init_rotation_matrix = rotation_matrix(M_PI*0.4, M_PI*0.3, M_PI);
-const glm::vec3 k_hexahedron_init_angular_velocity = {1.0f, 2.0f, 0.0f};
+const glm::vec3 k_hexahedron_init_angular_velocity = {10.0f, 10.0f, 10.0f};
 const glm::vec3 k_hexahedron_mesh_color = {0.8f, 0.25f, 0.25f};
 
 struct state_dt
@@ -94,8 +94,16 @@ struct state
         P += st_dt.P_dt;
         L += st_dt.L_dt;
     }
-
-    
+    inline state operator+(state_dt st_dt) 
+    {
+        return 
+        {
+            x += st_dt.v,
+            R += st_dt.R_dt,
+            P += st_dt.P_dt,
+            L += st_dt.L_dt
+        };
+    }
 };
 
 

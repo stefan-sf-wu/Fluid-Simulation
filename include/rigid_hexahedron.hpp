@@ -15,9 +15,9 @@ private:
     state curr_state;
     // state curr_state_dt;
     
-    std::vector<glm::vec3> vertices;        // relative position of vertices of hexahedron to com 
+    std::vector<glm::vec3> vertices; // relative position of vertices of hexahedron to com 
 
-    glm::mat3 I_0;    // moment of inertia tensor for hexahedron
+    glm::mat3 I_0;                   // moment of inertia tensor for hexahedron
 
     std::vector<glm::vec3> mesh_vertices;
     std::vector<unsigned int> mesh_indices;
