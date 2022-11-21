@@ -1,5 +1,8 @@
 #ifndef SOLVER_H_
 #define SOLVER_H_
+#ifndef GLM_ENABLE_EXPERIMENTAL
+    #define GLM_ENABLE_EXPERIMENTAL
+#endif
 
 #include <vector>
 #include <iostream>
@@ -11,13 +14,13 @@
 
 #include "common.hpp"
 #include "rigid_hexahedron.hpp"
-#include "collision_handler.hpp"
+#include "collision_detector.hpp"
 
 class Solver
 {
 private:
     Rigid_Hexahedron rigid_hexahedron;
-    Collision_Handler collision_handler;
+    Collision_Detector collision_detector;
 
 public: 
     Solver()
@@ -44,12 +47,12 @@ public:
     std::vector<glm::vec3> &get_hexahedron_vertices()
     {
         rigid_hexahedron.update_mesh_vertices();
-        return rigid_hexahedron.get_vertices();
+        return rigid_hexahedron.get_mesh_vertices();
     }
 
     std::vector<unsigned int> &get_hexahedron_indices() 
     { 
-        return rigid_hexahedron.get_indices(); 
+        return rigid_hexahedron.get_mesh_indices(); 
     }
 
     std::vector<glm::vec3> &get_hexahedron_color()
@@ -60,16 +63,29 @@ public:
     ~Solver()
     {
     };
+
 private:
     void compute_next_state_ex_euler()
     {
-        state curr_state = rigid_hexahedron.get_curr_state();
-        state_dt curr_state_dt = F(curr_state);
+        state curr_state, next_state;
+        state_d curr_state_d;
 
-        state next_state = curr_state + curr_state_dt * k_time_step;
-        next_state.R = normalize_matrix_by_row(next_state.R);
+        curr_state = rigid_hexahedron.get_curr_state();
+        curr_state_d = F(curr_state);
+        next_state = (curr_state + curr_state_d * k_time_step);
+
+        // collision
+        collision_result result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
+        if(result != k_null_collision_result)
+        {
+            next_state = handle_collision(curr_state, curr_state_d, result);
+        }
+        
+        // update
+        next_state.q = glm::normalize(next_state.q);
         rigid_hexahedron.set_curr_state(next_state);
     }
+
 
     void compute_next_state_im_euler()
     {
@@ -77,35 +93,81 @@ private:
 
     void compute_next_state_rk2()
     {
-        state curr_state = rigid_hexahedron.get_curr_state();
-        state_dt k1 = F(curr_state);
-        state_dt k2 = F(curr_state + k1 * 0.5f * k_time_step);
+        state curr_state, next_state;
+        state_d k1, k2;
+        
+        curr_state = rigid_hexahedron.get_curr_state();
+        k1 = F(curr_state);
 
-        state next_state = curr_state + k2 * k_time_step;
-        next_state.R = normalize_matrix_by_row(next_state.R);
+        // collision detection with k1
+        next_state = (curr_state + k1 * k_time_step);
+        collision_result result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
+        if(result != k_null_collision_result)
+        {
+            next_state = handle_collision(curr_state, k1, result);
+        }
+        else
+        {
+            k2 = F(curr_state + k1 * 0.5f * k_time_step);
+            next_state = (curr_state + k2 * k_time_step);
+        }
+
+        next_state.q = glm::normalize(next_state.q);
         rigid_hexahedron.set_curr_state(next_state);
-    }   
+    }
 
-    state_dt F(state st)
+
+    state handle_collision(state curr_state, state_d curr_state_d, collision_result result)
     {
-        state_dt st_dt;
+        glm::mat3 R = glm::toMat3(curr_state.q);
+        glm::mat3 moment_of_inertia_inverse = R * glm::inverse(rigid_hexahedron.get_moment_of_inertia()) * glm::transpose(R);
+        glm::vec3 omega = moment_of_inertia_inverse * curr_state.L;
+
+        float v_in  = glm::dot((curr_state_d.v + glm::cross(omega, result.r_a)), result.n);
+        float j = (-(1 + k_restitution) * v_in)
+            / ((1/k_hexahedron_mass) + glm::dot(result.n, (moment_of_inertia_inverse * glm::cross(glm::cross(result.r_a, result.n), result.r_a))));
+        glm::vec3 J = j * result.n;
+        return 
+        {
+            curr_state.x,
+            curr_state.q,
+            curr_state.P += J,
+            curr_state.L += glm::cross(result.r_a, J)
+        };
+    }
+
+    state_d F(state st)
+    {
+        state_d st_dt;
 
         st_dt.v = st.P / k_hexahedron_mass;
 
-        glm::mat3 moment_of_inertia_inverse = st.R * glm::inverse(rigid_hexahedron.get_moment_of_inertia()) * glm::transpose(st.R);
-        glm::vec3 omega = moment_of_inertia_inverse * st.L;
-        glm::mat3 omega_star =
-        {
-            {0.0f, -omega[2], omega[1]}, 
-            {omega[2], 0.0f, -omega[0]},
-            {-omega[1], omega[0], 0.0f}
-        };
-        st_dt.R_dt = omega_star * st.R;
+        glm::mat3 R = glm::toMat3(st.q);
 
-        st_dt.P_dt = glm::vec3({0, 0, 0}); // sum of forces
-        st_dt.L_dt = glm::vec3({0, 0, 0}); // sum of torques
+        glm::mat3 moment_of_inertia_inverse = R * glm::inverse(rigid_hexahedron.get_moment_of_inertia()) * glm::transpose(R);
+        glm::vec3 omega = moment_of_inertia_inverse * st.L;
+        
+        st_dt.q_d = 0.5f * glm::quat(0, omega) * st.q;
+
+        st_dt.P_d = compute_body_force() + compute_point_force(); // sum of forces
+        st_dt.L_d = compute_torque(); // sum of torques
 
         return st_dt;
+    }
+
+    glm::vec3 compute_body_force()
+    {
+        return k_hexahedron_mass * k_gravity;   // only gravity here for now
+    }
+
+    glm::vec3 compute_point_force()
+    {
+        return {0, 0, 0};
+    }
+
+    glm::vec3 compute_torque()
+    {
+        return {0, 0, 0};
     }
 };
 

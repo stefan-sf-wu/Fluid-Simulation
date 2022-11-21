@@ -1,5 +1,8 @@
 #ifndef COMMON_H_
 #define COMMON_H_
+#ifndef GLM_ENABLE_EXPERIMENTAL
+    #define GLM_ENABLE_EXPERIMENTAL
+#endif
 
 #include <vector>
 #include <iostream>
@@ -7,16 +10,36 @@
 #include <string>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 const char k_project_name[] = "RIGID BODIES";
 
 // World Params --------------------------------------------------------------------------//
 const int k_world_edge_size = 128;
-const glm::vec3 k_gravity = {0.0f, 0.0f, -10.0};
+const glm::vec3 k_gravity = {0.0f, 0.0f, -20.0};
 
 // Timer --------------------------------------------------------------------//
 const float k_time_step = 0.01;                 // sec
 const unsigned int k_max_display_time = 3000;   // sec
+
+// Collision --------------------------------------------------------------------//
+const float k_restitution = 0.5f;
+struct collision_result
+{
+    glm::vec3 r_a;
+    glm::vec3 n;
+
+    inline bool operator!=(collision_result cp)
+    {
+        return (r_a != cp.r_a) || (n != cp.n);
+    }
+};
+const collision_result k_null_collision_result =
+{
+    {-1.0f, -1.0f, -1.0f},
+    {-1.0f, -1.0f, -1.0f}
+};
 
 // Integrator --------------------------------------------------------------------//
 enum integrator 
@@ -56,52 +79,55 @@ inline glm::mat3 normalize_matrix_by_row(glm::mat3 mat)
 }
 
 const float k_hexahedron_mass = 12; // kg
-const glm::vec3 k_hexahedron_init_position = {k_world_edge_size * 0.5f, k_world_edge_size * 0.5f, k_world_edge_size * 0.8f};
+const glm::vec3 k_hexahedron_init_position = {k_world_edge_size * 0.6f, k_world_edge_size * 0.5f, k_world_edge_size * 0.8f};
 const glm::vec3 k_hexahedron_init_velocity = {0.0f, 0.0f, 0.0f};
-const glm::mat3 k_hexahedron_init_rotation_matrix = rotation_matrix(M_PI*0.4, M_PI*0.3, M_PI);
-const glm::vec3 k_hexahedron_init_angular_velocity = {10.0f, 10.0f, 10.0f};
-const glm::vec3 k_hexahedron_mesh_color = {0.8f, 0.25f, 0.25f};
+const glm::vec3 k_hexahedron_init_angular_velocity = {0.0f, 0.0f, 0.0f};
+const glm::vec3 k_hexahedron_init_rotate_axis = {0.0f, 0.0f, 0.0f}; //glm::normalize(glm::vec3({0.0f, 0.0f, 0.0f}));
+const float k_hexahedron_init_rotate_angle = 0;
 
-struct state_dt
+struct state_d
 {
-    glm::vec3 v;        // velocity of center of mass = (P / m)
-    glm::mat3 R_dt;     // derivative of rotation matrix = (I_inverse * L)
-    glm::vec3 P_dt;     // derivative of momentum = (sum of force)
-    glm::vec3 L_dt;     // derivative of angular momentum = (sum of torque)
+    glm::vec3 v;       // velocity of center of mass = (P / m)
+    glm::quat q_d;     // derivative of quaternion = 1/2 * ω * q
+    glm::vec3 P_d;     // derivative of momentum = (sum of force)
+    glm::vec3 L_d;     // derivative of angular momentum = (sum of torque)
 
-    inline state_dt operator*(float f)
+    inline state_d operator*(float h)
     {
         return {
-            v    * f,
-            R_dt * f,
-            P_dt * f,
-            L_dt * f
+            v    * h,
+            q_d * h,
+            P_d * h,
+            L_d * h
         };
     }
 };
 
 struct state
 {
+    /**
+     * quat: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-17-quaternions/#how-do-i-create-a-quaternion-in-c-
+    */
     glm::vec3 x;        // position of center of mass
-    glm::mat3 R;        // rotation matrix
+    glm::quat q;        // quaternion
     glm::vec3 P;        // linear momentum = (m * v)
     glm::vec3 L;        // angular momentum = (I * ω)
 
-    inline void operator+=(state_dt st_dt) 
+    inline void operator+=(state_d st_dt) 
     {
         x += st_dt.v;
-        R += st_dt.R_dt;
-        P += st_dt.P_dt;
-        L += st_dt.L_dt;
+        q += st_dt.q_d;
+        P += st_dt.P_d;
+        L += st_dt.L_d;
     }
-    inline state operator+(state_dt st_dt) 
+    inline state operator+(state_d st_dt) 
     {
         return 
         {
-            x += st_dt.v,
-            R += st_dt.R_dt,
-            P += st_dt.P_dt,
-            L += st_dt.L_dt
+            x + st_dt.v,
+            q + st_dt.q_d,
+            P + st_dt.P_d,
+            L + st_dt.L_d
         };
     }
 };

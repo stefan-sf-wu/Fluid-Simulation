@@ -166,6 +166,10 @@ public:
         glBindVertexArray(tetrahedron_vao);
             glBindBuffer(GL_ARRAY_BUFFER, tetrahedron_vbo);
             glBufferData(GL_ARRAY_BUFFER, sizeof(GLObj::tetrahedron), GLObj::tetrahedron, GL_STATIC_DRAW);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);   
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+            glEnableVertexAttribArray(1);
         
         // hexahedron
         glGenVertexArrays(1, &hexahedron_vao);
@@ -173,13 +177,11 @@ public:
         glGenBuffers(1, &hexahedron_ibo);
 
         glBindVertexArray(hexahedron_vao);
-            // glGenBuffers(1, &hexahedron_vbo[0]);
             glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[0]);
             glBufferData(GL_ARRAY_BUFFER, sovler.get_hexahedron_vertices().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_vertices()[0]), GL_STATIC_DRAW);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
             glEnableVertexAttribArray(0);
 
-            // glGenBuffers(1, &hexahedron_color);
             glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[1]);
             glBufferData(GL_ARRAY_BUFFER, sovler.get_hexahedron_color().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_color()[0]), GL_STATIC_DRAW);
             glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
@@ -262,8 +264,6 @@ public:
         // render tetrahedron
         glBindVertexArray(tetrahedron_vao);
             glBindBuffer(GL_ARRAY_BUFFER, tetrahedron_vbo);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);   
-            glEnableVertexAttribArray(0);
             glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glDisable(GL_DEPTH_TEST);

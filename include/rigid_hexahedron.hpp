@@ -1,5 +1,8 @@
 #ifndef RIGID_HEXAHEDRON_HPP_
 #define RIGID_HEXAHEDRON_HPP_
+#ifndef GLM_ENABLE_EXPERIMENTAL
+    #define GLM_ENABLE_EXPERIMENTAL
+#endif
 
 #include <vector>
 #include <cmath>
@@ -8,25 +11,23 @@
 #include <omp.h>
 
 #include "common.hpp"
+#include "rand_generator.hpp"
 
 class Rigid_Hexahedron
 {
 private:
     state curr_state;
-    // state curr_state_dt;
-    
-    std::vector<glm::vec3> vertices; // relative position of vertices of hexahedron to com 
-
     glm::mat3 I_0;                   // moment of inertia tensor for hexahedron
-
+    std::vector<glm::vec3> vertices; // relative position of vertices of hexahedron to center of mass
     std::vector<glm::vec3> mesh_vertices;
     std::vector<unsigned int> mesh_indices;
     std::vector<glm::vec3> mesh_color;
 
+    RandGenerator rand_generator;
 public:
     Rigid_Hexahedron()
     {
-        float w = k_world_edge_size/6;
+        float w = k_world_edge_size/5;
         float l = k_world_edge_size/3; 
         float h = k_world_edge_size/7;
         build_vertices(w, l, h);
@@ -36,7 +37,13 @@ public:
 
         // initialize the state
         curr_state.x = k_hexahedron_init_position;
-        curr_state.R = k_hexahedron_init_rotation_matrix;
+        curr_state.q = glm::quat
+        (
+            cos(k_hexahedron_init_rotate_angle/2), 
+            k_hexahedron_init_rotate_axis[0] * sin(k_hexahedron_init_rotate_angle/2),
+            k_hexahedron_init_rotate_axis[1] * sin(k_hexahedron_init_rotate_angle/2),
+            k_hexahedron_init_rotate_axis[2] * sin(k_hexahedron_init_rotate_angle/2)
+        );
         curr_state.P = k_hexahedron_init_velocity * k_hexahedron_mass;
         curr_state.L = I_0 * k_hexahedron_init_angular_velocity;
                 
@@ -45,12 +52,14 @@ public:
     void update_mesh_vertices()
     {
         int i;
-        #pragma parallel for private(i)
-        for(i = 0; i < vertices.size(); i++) { mesh_vertices[i] = transform_phy2gl(curr_state.x + curr_state.R * vertices[i]); }
+        glm::mat3 R = glm::toMat3(curr_state.q);
+        #pragma parallel for private(i) num_threads(4)
+        for(i = 0; i < vertices.size(); i++) { mesh_vertices[i] = transform_phy2gl(curr_state.x + R * vertices[i]); }
     }
 
-    std::vector<glm::vec3> &get_vertices() { return mesh_vertices; }
-    std::vector<unsigned int> &get_indices() { return mesh_indices; }
+    std::vector<glm::vec3> &get_vertices() { return vertices; }
+    std::vector<glm::vec3> &get_mesh_vertices() { return mesh_vertices; }
+    std::vector<unsigned int> &get_mesh_indices() { return mesh_indices; }
     std::vector<glm::vec3> &get_color() { return mesh_color; }
     glm::mat3 &get_moment_of_inertia() { return I_0; }
     state &get_curr_state() { return curr_state; }
@@ -88,7 +97,7 @@ void build_mesh()
     mesh_indices.insert(mesh_indices.end(), {0, 1, 2});
     mesh_indices.insert(mesh_indices.end(), {1, 2, 3});
 
-    for(int i = 0; i < mesh_vertices.size(); i++) { mesh_color.push_back(k_hexahedron_mesh_color); }
+    for(int i = 0; i < mesh_vertices.size(); i++) { mesh_color.push_back(rand_generator.generate_random_uniform_vec3(0.2, 0.8)); }
 }
 
 void build_vertices(float w, float l, float h)

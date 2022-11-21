@@ -18,18 +18,26 @@ const char* vertexShaderSource = "#version 330 core\n"
 const char* fragmentShaderSource = "#version 330 core\n"
     "out vec4 FragColor;\n"
     "in vec3 ourColor;\n"
-    "float near = 0.1;\n"
-    "float far  = 15.0;\n"
-    "float LinearizeDepth(float depth)\n"
-    "{\n"
-    "   float z = depth * 2.0 - 1.0;\n"
-    "   return (2.0 * near * far) / (far + near - z * (far - near));\n"
-    "}\n"
     "void main()\n"
     "{\n"
-    "   float depth = LinearizeDepth(gl_FragCoord.z) / far;\n"
-    "   FragColor = vec4(depth * 5 * ourColor, 1.0f);\n"
-    "}\0";
+    "   FragColor = vec4(ourColor, 0.3f);\n"
+    "}\n\0";
+
+// const char* fragmentShaderSource = "#version 330 core\n"
+//     "out vec4 FragColor;\n"
+//     "in vec3 ourColor;\n"
+//     "float near = 0.1;\n"
+//     "float far  = 15.0;\n"
+//     "float LinearizeDepth(float depth)\n"
+//     "{\n"
+//     "   float z = depth * 2.0 - 1.0;\n"
+//     "   return (2.0 * near * far) / (far + near - z * (far - near));\n"
+//     "}\n"
+//     "void main()\n"
+//     "{\n"
+//     "   float depth = LinearizeDepth(gl_FragCoord.z) / far;\n"
+//     "   FragColor = vec4(depth * 5 * ourColor, 1.0f);\n"
+//     "}\0";
 
 // shading with lighting: https://learnopengl.com/code_viewer_gh.php?code=src/2.lighting/2.2.basic_lighting_specular/basic_lighting_specular.cpp
 
