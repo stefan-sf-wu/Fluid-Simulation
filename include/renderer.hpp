@@ -3,8 +3,9 @@
 
 #include <iostream>
 #include <vector>
+#include <unistd.h>
 
-#include <glad/glad.h>
+#include <glad/glad.h>  
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -219,20 +220,26 @@ public:
 
     void start_looping()
     {
+        bool is_resting = false;
         while(!glfwWindowShouldClose(window) && !timer.is_time_to_stop())
         {
             processInput(window);
             glfwPollEvents();
 
-            if (timer.is_time_to_draw()) 
+            if (!is_resting)
             {
-                timer.update_next_display_time();
-                glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[0]);
-                glBufferSubData(GL_ARRAY_BUFFER, 0, sovler.get_hexahedron_vertices().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_vertices()[0]));
-                draw();
+                if (timer.is_time_to_draw()) 
+                {
+                    timer.update_next_display_time();
+                    glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[0]);
+                    glBufferSubData(GL_ARRAY_BUFFER, 0, sovler.get_hexahedron_vertices().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_vertices()[0]));
+                    draw();
+                }
+
+                sovler.compute_next_state();
+                timer.update_simulation_time();
+                is_resting = sovler.is_resting();
             }
-            sovler.compute_next_state();
-            timer.update_simulation_time();
         }
         delete_GLBuffers();
         glfwTerminate();

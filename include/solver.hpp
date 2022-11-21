@@ -44,6 +44,11 @@ public:
         }
     }
 
+    bool is_resting()
+    {
+        return false;
+    }
+
     std::vector<glm::vec3> &get_hexahedron_vertices()
     {
         rigid_hexahedron.update_mesh_vertices();
@@ -76,7 +81,7 @@ private:
 
         // collision
         std::vector<collision_result> result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
-        if(result.size() != 0)
+        if(!result.empty())
         {
             next_state = handle_collision(curr_state, curr_state_d, result);
         }
@@ -93,27 +98,26 @@ private:
 
     void compute_next_state_rk2()
     {
-        // state curr_state, next_state;
-        // state_d k1, k2;
+        state curr_state, next_state;
+        state_d k1, k2;
         
-        // curr_state = rigid_hexahedron.get_curr_state();
-        // k1 = F(curr_state);
+        curr_state = rigid_hexahedron.get_curr_state();
+        k1 = F(curr_state);
 
         // // collision detection with k1
         // next_state = (curr_state + k1 * k_time_step);
-        // collision_result result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
-        // if(result != k_null_collision_result)
-        // {
-        //     next_state = handle_collision(curr_state, k1, result);
-        // }
-        // else
-        // {
-        //     k2 = F(curr_state + k1 * 0.5f * k_time_step);
-        //     next_state = (curr_state + k2 * k_time_step);
-        // }
+        
+        k2 = F(curr_state + k1 * 0.5f * k_time_step);
+        next_state = (curr_state + k2 * k_time_step);
+        
+        std::vector<collision_result> result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
+        if(!result.empty())
+        {
+            next_state = handle_collision(curr_state, k2, result);
+        }
 
-        // next_state.q = glm::normalize(next_state.q);
-        // rigid_hexahedron.set_curr_state(next_state);
+        next_state.q = glm::normalize(next_state.q);
+        rigid_hexahedron.set_curr_state(next_state);
     }
 
 
