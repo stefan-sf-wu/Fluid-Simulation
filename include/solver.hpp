@@ -75,8 +75,8 @@ private:
         next_state = (curr_state + curr_state_d * k_time_step);
 
         // collision
-        collision_result result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
-        if(result != k_null_collision_result)
+        std::vector<collision_result> result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
+        if(result.size() != 0)
         {
             next_state = handle_collision(curr_state, curr_state_d, result);
         }
@@ -93,46 +93,55 @@ private:
 
     void compute_next_state_rk2()
     {
-        state curr_state, next_state;
-        state_d k1, k2;
+        // state curr_state, next_state;
+        // state_d k1, k2;
         
-        curr_state = rigid_hexahedron.get_curr_state();
-        k1 = F(curr_state);
+        // curr_state = rigid_hexahedron.get_curr_state();
+        // k1 = F(curr_state);
 
-        // collision detection with k1
-        next_state = (curr_state + k1 * k_time_step);
-        collision_result result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
-        if(result != k_null_collision_result)
-        {
-            next_state = handle_collision(curr_state, k1, result);
-        }
-        else
-        {
-            k2 = F(curr_state + k1 * 0.5f * k_time_step);
-            next_state = (curr_state + k2 * k_time_step);
-        }
+        // // collision detection with k1
+        // next_state = (curr_state + k1 * k_time_step);
+        // collision_result result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
+        // if(result != k_null_collision_result)
+        // {
+        //     next_state = handle_collision(curr_state, k1, result);
+        // }
+        // else
+        // {
+        //     k2 = F(curr_state + k1 * 0.5f * k_time_step);
+        //     next_state = (curr_state + k2 * k_time_step);
+        // }
 
-        next_state.q = glm::normalize(next_state.q);
-        rigid_hexahedron.set_curr_state(next_state);
+        // next_state.q = glm::normalize(next_state.q);
+        // rigid_hexahedron.set_curr_state(next_state);
     }
 
 
-    state handle_collision(state curr_state, state_d curr_state_d, collision_result result)
+    state handle_collision(state curr_state, state_d curr_state_d, std::vector<collision_result> result)
     {
         glm::mat3 R = glm::toMat3(curr_state.q);
         glm::mat3 moment_of_inertia_inverse = R * glm::inverse(rigid_hexahedron.get_moment_of_inertia()) * glm::transpose(R);
         glm::vec3 omega = moment_of_inertia_inverse * curr_state.L;
 
-        float v_in  = glm::dot((curr_state_d.v + glm::cross(omega, result.r_a)), result.n);
-        float j = (-(1 + k_restitution) * v_in)
-            / ((1/k_hexahedron_mass) + glm::dot(result.n, (moment_of_inertia_inverse * glm::cross(glm::cross(result.r_a, result.n), result.r_a))));
-        glm::vec3 J = j * result.n;
+        glm::vec3 delta_P = {0.0f, 0.0f, 0.0f};
+        glm::vec3 delta_L = {0.0f, 0.0f, 0.0f};
+        #pragma parallel for reduction(+: delta_P, delta_L)
+        for (auto res : result)
+        {
+            float v_in  = glm::dot((curr_state_d.v + glm::cross(omega, res.r_a)), res.n);
+            float j = (-(1 + k_restitution) * v_in)
+                / ((1/k_hexahedron_mass) + glm::dot(res.n, (moment_of_inertia_inverse * glm::cross(glm::cross(res.r_a, res.n), res.r_a))));
+            glm::vec3 J = j * res.n;
+            delta_P += J;
+            delta_L += glm::cross(res.r_a, J);
+        }
+
         return 
         {
             curr_state.x,
             curr_state.q,
-            curr_state.P += J,
-            curr_state.L += glm::cross(result.r_a, J)
+            curr_state.P += delta_P,
+            curr_state.L += delta_L
         };
     }
 

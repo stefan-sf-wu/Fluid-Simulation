@@ -17,8 +17,8 @@
 #include "OGL/tetrahedron_mesh.hpp"
 #include "OGL/ground_mesh.hpp"
 
-int default_src_width  = 1600;
-int default_src_height = 1000;
+int default_src_width  = 3200;
+int default_src_height = 2000;
 
 float refresh_interval = (1/30);
 

@@ -47,7 +47,7 @@ public:
         next_vertices.resize(8);
     };
 
-    collision_result detect_collision(state &curr_state, state &next_state, std::vector<glm::vec3> &vertices)
+    std::vector<collision_result> detect_collision(state &curr_state, state &next_state, std::vector<glm::vec3> &vertices)
     {
         int i;
         glm::mat3 curr_R = glm::toMat3(curr_state.q);
@@ -60,20 +60,24 @@ public:
             next_vertices[i] = (next_state.x + next_R * vertices[i]);
         }
 
-        // edge-edge collision detection: p.205
         collision_result edge_edge_result = detect_edge_edge_collision(curr_state.x);
-        return edge_edge_result;
-
-        // collision_result vertex_face_result = detect_vertex_face_collision(curr_state.x);
-        // return vertex_face_result;
-        // vertex-face
-        // return {NULL, NULL, NULL};
+        if (edge_edge_result != k_null_collision_result) 
+        {
+            return { edge_edge_result };
+        }
+        
+        std::vector<collision_result> vertex_face_result = detect_vertex_face_collision(curr_state.x);
+        if (!(vertex_face_result.size() == 1 && vertex_face_result[0] == k_null_collision_result))
+        {
+            return vertex_face_result;
+        }
+        return {};
     }
 
     ~Collision_Detector() {};
 
 private:
-    collision_result detect_vertex_face_collision(glm::vec3 com_position)
+    std::vector<collision_result> detect_vertex_face_collision(glm::vec3 com_position)
     {
         int i;
         std::vector<collision_result> collision_results;
@@ -88,12 +92,15 @@ private:
                     ground_plain.n
                 });
             }
-            else return k_null_collision_result;
         }
-        // if (collision_results.size() != 0)
-        // {
-        //     return collision_results;
-        // }
+        if (collision_results.size() != 0)
+        {
+            return collision_results;
+        }
+        else
+        {
+            return { k_null_collision_result };
+        }
     }
 
     collision_result detect_edge_edge_collision(glm::vec3 com_position)

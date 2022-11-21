@@ -17,7 +17,7 @@ const char k_project_name[] = "RIGID BODIES";
 
 // World Params --------------------------------------------------------------------------//
 const int k_world_edge_size = 128;
-const glm::vec3 k_gravity = {0.0f, 0.0f, -20.0};
+const glm::vec3 k_gravity = {0.0f, 0.0f, -30.0};
 
 // Timer --------------------------------------------------------------------//
 const float k_time_step = 0.01;                 // sec
@@ -30,9 +30,13 @@ struct collision_result
     glm::vec3 r_a;
     glm::vec3 n;
 
-    inline bool operator!=(collision_result cp)
+    inline bool operator!=(collision_result cr)
     {
-        return (r_a != cp.r_a) || (n != cp.n);
+        return (r_a != cr.r_a) || (n != cr.n);
+    }
+    inline bool operator==(collision_result cr)
+    {
+        return (r_a == cr.r_a) && (n == cr.n);
     }
 };
 const collision_result k_null_collision_result =
@@ -46,7 +50,7 @@ enum integrator
 {
     ex_euler, im_euler, rk2
 };
-const integrator integration_method  = integrator::rk2;
+const integrator integration_method  = integrator::ex_euler;
 
 // Rigid Body -------------------------------------------------------------------//
 glm::mat3 rotation_matrix(float beta, float gamma, float alpha)
@@ -79,7 +83,7 @@ inline glm::mat3 normalize_matrix_by_row(glm::mat3 mat)
 }
 
 const float k_hexahedron_mass = 12; // kg
-const glm::vec3 k_hexahedron_init_position = {k_world_edge_size * 0.6f, k_world_edge_size * 0.5f, k_world_edge_size * 0.8f};
+const glm::vec3 k_hexahedron_init_position = {k_world_edge_size * 0.6f, k_world_edge_size * 0.5f, k_world_edge_size * 1.0f};
 const glm::vec3 k_hexahedron_init_velocity = {0.0f, 0.0f, 0.0f};
 const glm::vec3 k_hexahedron_init_angular_velocity = {0.0f, 0.0f, 0.0f};
 const glm::vec3 k_hexahedron_init_rotate_axis = {0.0f, 0.0f, 0.0f}; //glm::normalize(glm::vec3({0.0f, 0.0f, 0.0f}));
