@@ -10,13 +10,14 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <omp.h>
 
 #include "common.hpp"
 #include "timer.hpp"
 #include "solver.hpp"
 #include "OGL/shader.hpp"
-#include "OGL/tetrahedron_mesh.hpp"
-#include "OGL/ground_mesh.hpp"
+#include "OGL/gl_object.hpp"
+
 
 int default_src_width  = 3200;
 int default_src_height = 2000;
@@ -93,18 +94,13 @@ private:
     glm::mat4 model;
     glm::mat4 view;
 
-    GLuint ground_vao;          
-    GLuint ground_mesh_vbo;    
-    GLuint ground_mesh_ibo;     
-    GLuint ground_mesh_color;
+    GLuint box_vao;
+    GLuint box_vertex_buffer;
 
-    GLuint tetrahedron_vao;
-    GLuint tetrahedron_vbo;
+    GLuint particle_vao;
+    GLuint particle_vertex_buffer[2];
 
-    GLuint hexahedron_vao;
-    GLuint hexahedron_vbo[2];
-    GLuint hexahedron_ibo;
-    GLuint hexahedron_color;
+    glm::mat4* modelMatrices;
 
     Timer timer;
     Solver sovler;
@@ -116,7 +112,7 @@ public:
     void initialize()
     {
         timer.reset(refresh_interval);
-        GLObj::build_ground_mesh();
+        modelMatrices =  new glm::mat4[k_num_particles];
       
         glfwInit();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -160,50 +156,32 @@ public:
         glDeleteShader(fragmentShader);
         glUseProgram(shaderProgram);
 
-        // tetrahedron
-        glGenVertexArrays(1, &tetrahedron_vao);
-        glGenBuffers(1, &tetrahedron_vbo);
+        // box
+        glGenVertexArrays(1, &box_vao);
+        glGenBuffers(1, &box_vertex_buffer);
         
-        glBindVertexArray(tetrahedron_vao);
-            glBindBuffer(GL_ARRAY_BUFFER, tetrahedron_vbo);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(GLObj::tetrahedron), GLObj::tetrahedron, GL_STATIC_DRAW);
+        glBindVertexArray(box_vao);
+            glBindBuffer(GL_ARRAY_BUFFER, box_vertex_buffer);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(GLObj::box), GLObj::box, GL_STATIC_DRAW);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);   
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
             glEnableVertexAttribArray(1);
         
-        // hexahedron
-        glGenVertexArrays(1, &hexahedron_vao);
-        glGenBuffers(2, hexahedron_vbo);
-        glGenBuffers(1, &hexahedron_ibo);
+        // particle
+        glGenVertexArrays(1, &particle_vao);
+        glGenBuffers(2, particle_vertex_buffer);
 
-        glBindVertexArray(hexahedron_vao);
-            glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[0]);
-            glBufferData(GL_ARRAY_BUFFER, sovler.get_hexahedron_vertices().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_vertices()[0]), GL_STATIC_DRAW);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glBindVertexArray(particle_vao);
+            glBindBuffer(GL_ARRAY_BUFFER, particle_vertex_buffer[0]);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(GLObj::particle), GLObj::particle, GL_STATIC_DRAW);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
             glEnableVertexAttribArray(0);
 
-            glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[1]);
-            glBufferData(GL_ARRAY_BUFFER, sovler.get_hexahedron_color().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_color()[0]), GL_STATIC_DRAW);
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+            glBindBuffer(GL_ARRAY_BUFFER, particle_vertex_buffer[1]);
+            glBufferData(GL_ARRAY_BUFFER, sovler.get_gl_particle_color().size() * sizeof(glm::vec3), glm::value_ptr(sovler.get_gl_particle_color()[0]), GL_STATIC_DRAW);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
             glEnableVertexAttribArray(1);
-
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hexahedron_ibo);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sovler.get_hexahedron_indices().size() * sizeof(unsigned int), &sovler.get_hexahedron_indices()[0], GL_STATIC_DRAW);
-
-        // ground mesh
-        glGenVertexArrays(1, &ground_vao);
-        glGenBuffers(1, &ground_mesh_vbo);
-        glGenBuffers(1, &ground_mesh_ibo);
-
-        glBindVertexArray(ground_vao);
-            glBindBuffer(GL_ARRAY_BUFFER, ground_mesh_vbo);
-            glBufferData(GL_ARRAY_BUFFER, GLObj::ground_mesh_vertices.size()*sizeof(glm::vec3), glm::value_ptr(GLObj::ground_mesh_vertices[0]), GL_STATIC_DRAW);
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);  
-            
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ground_mesh_ibo);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLObj::ground_mesh_indices.size()*sizeof(glm::uvec4), glm::value_ptr(GLObj::ground_mesh_indices[0]), GL_STATIC_DRAW);
 
         // Declare model/view/projection matrices
         model = glm::mat4(1.0f);
@@ -220,26 +198,20 @@ public:
 
     void start_looping()
     {
-        bool is_resting = false;
         while(!glfwWindowShouldClose(window) && !timer.is_time_to_stop())
         {
             processInput(window);
             glfwPollEvents();
 
-            if (!is_resting)
+            if (timer.is_time_to_draw()) 
             {
-                if (timer.is_time_to_draw()) 
-                {
-                    timer.update_next_display_time();
-                    glBindBuffer(GL_ARRAY_BUFFER, hexahedron_vbo[0]);
-                    glBufferSubData(GL_ARRAY_BUFFER, 0, sovler.get_hexahedron_vertices().size()*sizeof(glm::vec3), glm::value_ptr(sovler.get_hexahedron_vertices()[0]));
-                    draw();
-                }
-
-                sovler.compute_next_state();
-                timer.update_simulation_time();
-                is_resting = sovler.is_resting();
+                timer.update_next_display_time();
+                update_particle_position();
+                draw();
             }
+
+            sovler.compute_next_state();
+            timer.update_simulation_time();
         }
         delete_GLBuffers();
         glfwTerminate();
@@ -247,10 +219,12 @@ public:
 
     void draw() 
     {
-        // glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        // glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
 
         // Set view matrix
         view = glm::lookAt(glm::vec3(camX, camY, camZ), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 0.0, 2.0));
@@ -258,31 +232,40 @@ public:
         model = glm::mat4(1.0f);
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-        // render ground mesh
-        glBindVertexArray(ground_vao);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ground_mesh_ibo);
-            glDrawElements(GL_LINES, GLObj::ground_mesh_indices.size()*4, GL_UNSIGNED_INT, (void*)0);
-
-        // render hexaedron
-        glBindVertexArray(hexahedron_vao);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hexahedron_ibo);
-            glDrawElements(GL_TRIANGLES, sovler.get_hexahedron_indices().size(), GL_UNSIGNED_INT, (void*)0);
- 
-        // render tetrahedron
-        glBindVertexArray(tetrahedron_vao);
-            glBindBuffer(GL_ARRAY_BUFFER, tetrahedron_vbo);
+        glBindVertexArray(box_vao);
+            model = glm::mat4(1.0f);
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
             glDrawArrays(GL_TRIANGLES, 0, 36);
+        
+        glBindVertexArray(particle_vao);
+        // #pragma parallel for 
+        for(int i = 0; i < k_num_particles; i++)
+        {
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMatrices[i]));
+            glDrawArrays(GL_TRIANGLES, 0, 24);
+        }
 
-        glDisable(GL_DEPTH_TEST);
+        // glDisable(GL_DEPTH_TEST);
         glfwSwapBuffers(window);
+    }
+
+    void update_particle_position()
+    {
+        #pragma parallel for
+        for (int i = 0; i < k_num_particles; i++)
+        {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, sovler.get_gl_particle_position()[i]);
+            modelMatrices[i] = model;
+        }
     }
 
     void delete_GLBuffers()
     {
-        glDeleteVertexArrays(1, &tetrahedron_vao);
-        glDeleteBuffers(1, &tetrahedron_vbo);
-        glDeleteBuffers(1, &ground_mesh_vbo);
-        glDeleteBuffers(1, &ground_mesh_ibo);
+        glDeleteVertexArrays(1, &box_vao);
+        glDeleteVertexArrays(1, &particle_vao);
+        glDeleteBuffers(2, particle_vertex_buffer);
+        glDeleteBuffers(1, &box_vertex_buffer);
         glDeleteProgram(shaderProgram);
     }
 

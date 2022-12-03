@@ -9,7 +9,7 @@
 
 #include "common.hpp"
  
-#define RAND_VEC_LEN 97
+const unsigned int rand_vec_len = 9973;
 
 class RandGenerator
 {
@@ -20,7 +20,7 @@ private:
 private:
     inline unsigned int get_offset() 
     {
-        if(++offset_ == RAND_VEC_LEN) {
+        if(++offset_ == rand_vec_len) {
             offset_ = 0;
         }
         return offset_;
@@ -29,18 +29,13 @@ private:
 public:
     RandGenerator() 
     {
-        reset();
-    };
-
-    void reset() 
-    {
         offset_ = 0;
         random_num_vec_.clear();
         srand(time(NULL));
-        for(int i = 0; i < RAND_VEC_LEN; i++) {
+        for(int i = 0; i < rand_vec_len; i++) {
             random_num_vec_.push_back(static_cast<float> (rand() / static_cast<float> (RAND_MAX)));
         }
-    }
+    };
 
     inline float generate_uniform(float u_min, float u_max)
     {
