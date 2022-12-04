@@ -112,7 +112,7 @@ public:
     void initialize()
     {
         timer.reset(refresh_interval);
-        modelMatrices =  new glm::mat4[k_num_particles];
+        modelMatrices =  new glm::mat4[k_num_particle];
       
         glfwInit();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -210,8 +210,10 @@ public:
                 draw();
             }
 
+
             sovler.compute_next_state();
             timer.update_simulation_time();
+            break;
         }
         delete_GLBuffers();
         glfwTerminate();
@@ -239,7 +241,7 @@ public:
         
         glBindVertexArray(particle_vao);
         // #pragma parallel for 
-        for(int i = 0; i < k_num_particles; i++)
+        for(int i = 0; i < k_num_particle; i++)
         {
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMatrices[i]));
             glDrawArrays(GL_TRIANGLES, 0, 24);
@@ -251,8 +253,8 @@ public:
 
     void update_particle_position()
     {
-        #pragma parallel for
-        for (int i = 0; i < k_num_particles; i++)
+        #pragma omp parallel for
+        for (int i = 0; i < k_num_particle; i++)
         {
             model = glm::mat4(1.0f);
             model = glm::translate(model, sovler.get_gl_particle_position()[i]);

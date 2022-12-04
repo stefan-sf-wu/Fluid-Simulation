@@ -168,12 +168,12 @@ public:
 	//! However, increasing the radiusSquared value can have unpredictable results.
 	//! The callback function must be in the following form:
 	//!
-	//! void _CALLBACK(SIZE_TYPE index, PointType const &p, FType distanceSquared, FType &radiusSquared)
+	//! void _CALLBACK(SIZE_TYPE target_index, SIZE_TYPE index, PointType const &p, FType distanceSquared, FType &radiusSquared)
 	template <typename _CALLBACK>
-	void GetPoints( PointType const &position, FType radius, _CALLBACK pointFound ) const
+	void GetPoints( SIZE_TYPE target_index, PointType const &position, FType radius, _CALLBACK pointFound ) const
 	{
 		FType r2 = radius*radius;
-		GetPoints( position, r2, pointFound, 1 );
+		GetPoints( target_index, position, r2, pointFound, 1 );
 	}
 
 	//! Used by one of the PointCloud::GetPoints() methods.
@@ -181,6 +181,7 @@ public:
 	//! Keeps the point index, position, and distance squared to a given search position.
 	//! Used by one of the GetPoints methods.
 	struct PointInfo {
+		SIZE_TYPE target_index;		//!< The index of the target point
 		SIZE_TYPE index;			//!< The index of the point
 		PointType pos;				//!< The position of the point
 		FType     distanceSquared;	//!< Squared distance from the search position
@@ -400,12 +401,12 @@ private:
 	}
 
 	template <typename _CALLBACK>
-	void GetPoints( PointType const &position, FType &dist2, _CALLBACK pointFound, SIZE_TYPE nodeID ) const
+	void GetPoints( SIZE_TYPE target_index, PointType const &position, FType &dist2, _CALLBACK pointFound, SIZE_TYPE nodeID ) const
 	{
 		SIZE_TYPE stack[sizeof(SIZE_TYPE)*8];
 		SIZE_TYPE stackPos = 0;
 
-		TraverseCloser( position, dist2, pointFound, nodeID, stack, stackPos );
+		TraverseCloser( target_index, position, dist2, pointFound, nodeID, stack, stackPos );
 
 		// empty the stack
 		while ( stackPos > 0 ) {
@@ -420,17 +421,17 @@ private:
 				// FType d2 = (position - pos).LengthSquared();
 				PointType v = (position - pos);
 				FType d2 = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-				if ( d2 < dist2 ) pointFound( p.Index(), pos, d2, dist2 );
+				if ( d2 < dist2 ) pointFound( target_index, p.Index(), pos, d2, dist2 );
 				// traverse down the other child node
 				SIZE_TYPE child = 2*nodeID;
 				nodeID = dist1 < 0 ? child+1 : child;
-				TraverseCloser( position, dist2, pointFound, nodeID, stack, stackPos );
+				TraverseCloser( target_index, position, dist2, pointFound, nodeID, stack, stackPos );
 			}
 		}
 	}
 
 	template <typename _CALLBACK>
-	void TraverseCloser( PointType const &position, FType &dist2, _CALLBACK pointFound, SIZE_TYPE nodeID, SIZE_TYPE *stack, SIZE_TYPE &stackPos ) const
+	void TraverseCloser( SIZE_TYPE target_index, PointType const &position, FType &dist2, _CALLBACK pointFound, SIZE_TYPE nodeID, SIZE_TYPE *stack, SIZE_TYPE &stackPos ) const
 	{
 		// Traverse down to a leaf node along the closer branch
 		while ( nodeID <= numInternal ) {
@@ -448,7 +449,7 @@ private:
 		// FType d2 = (position - pos).LengthSquared();
 		PointType v = (position - pos);
 		FType d2 = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-		if ( d2 < dist2 ) pointFound( p.Index(), pos, d2, dist2 );
+		if ( d2 < dist2 ) pointFound( target_index, p.Index(), pos, d2, dist2 );
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////

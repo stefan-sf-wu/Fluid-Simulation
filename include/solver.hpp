@@ -15,25 +15,42 @@
 class Solver
 {
 private:
+    std::vector<glm::vec3> acc_buffer;
+    std::vector<glm::vec3> pos_buffer;
+    std::vector<glm::vec3> vel_buffer;
+
     Particle particles;
+    cy::PointCloud<glm::vec3, float, 3> kdtree;
 
 public: 
     Solver()
+    : acc_buffer(k_num_particle)
+    , pos_buffer(k_num_particle)
+    , vel_buffer(k_num_particle)
     {
+        // acc_buffer.resize(k_num_particle);
+        // pos_buffer.resize(k_num_particle);
+        // vel_buffer.resize(k_num_particle);
     };
 
     void compute_next_state()
     {
+        compute_forces();
+
         switch (integration_method)
         {
             case integrator::im_euler:
-                compute_next_state_im_euler();
+                integrated_by_im_euler();
                 break;
             case integrator::ex_euler:
-                compute_next_state_ex_euler();
+                integrated_by_ex_euler();
                 break;
             case integrator::rk2:
-                compute_next_state_rk2();
+                integrated_by_rk2();
+                break;
+            case integrator::verlet:
+                integrated_by_verlet();
+                break;
             default:
                 break;
         }
@@ -47,118 +64,66 @@ public:
     };
 
 private:
-    void compute_next_state_ex_euler()
+    void integrated_by_verlet()
     {
-        // state curr_state, next_state;
-        // state_d curr_state_d;
-
-        // curr_state = rigid_hexahedron.get_curr_state();
-        // curr_state_d = F(curr_state);
-        // next_state = (curr_state + curr_state_d * k_time_step);
-
-        // // collision
-        // std::vector<collision_result> result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
-        // if(!result.empty())
-        // {
-        //     next_state = handle_collision(curr_state, curr_state_d, result);
-        // }
-        
-        // // update
-        // next_state.q = glm::normalize(next_state.q);
-        // rigid_hexahedron.set_curr_state(next_state);
+        #pragma omp parallel for 
+        for (int i = 0; i < k_num_particle; i++)
+        {
+            pos_buffer.at(i) = particles.get_particle_position().at(i)
+                + particles.get_particle_velocity().at(i)
+                + particles.get_particle_acceleration().at(i) * (float)(std::pow(k_time_step, 2) / 2);
+            
+            acc_buffer.at(i) = particles.get_particle_force().at(i) / particles.get_particle_density().at(i);
+            vel_buffer.at(i) = particles.get_particle_velocity().at(i) 
+                + (particles.get_particle_acceleration().at(i) + acc_buffer.at(i)) * (k_time_step / 2);
+        }
+        particles.set_particle_position(pos_buffer);
+        particles.set_particle_velocity(vel_buffer);
+        particles.set_particle_acceleration(acc_buffer);
     }
 
-
-    void compute_next_state_im_euler()
+    void integrated_by_ex_euler()
     {
     }
 
-    void compute_next_state_rk2()
+    void integrated_by_im_euler()
     {
-        // state curr_state, next_state;
-        // state_d k1, k2;
-        
-        // curr_state = rigid_hexahedron.get_curr_state();
-        // k1 = F(curr_state);
-
-        // // // collision detection with k1
-        // // next_state = (curr_state + k1 * k_time_step);
-        
-        // k2 = F(curr_state + k1 * 0.5f * k_time_step);
-        // next_state = (curr_state + k2 * k_time_step);
-        
-        // std::vector<collision_result> result = collision_detector.detect_collision(curr_state, next_state, rigid_hexahedron.get_vertices());
-        // if(!result.empty())
-        // {
-        //     next_state = handle_collision(curr_state, k2, result);
-        // }
-
-        // next_state.q = glm::normalize(next_state.q);
-        // rigid_hexahedron.set_curr_state(next_state);
     }
 
+    void integrated_by_rk2()
+    {
+    }
 
-    // state handle_collision(state curr_state, state_d curr_state_d, std::vector<collision_result> result)
-    // {
-    //     glm::mat3 R = glm::toMat3(curr_state.q);
-    //     glm::mat3 moment_of_inertia_inverse = R * glm::inverse(rigid_hexahedron.get_moment_of_inertia()) * glm::transpose(R);
-    //     glm::vec3 omega = moment_of_inertia_inverse * curr_state.L;
+    void compute_forces()
+    {
+        compute_neighborhood();
+        compute_density();
 
-    //     glm::vec3 delta_P = {0.0f, 0.0f, 0.0f};
-    //     glm::vec3 delta_L = {0.0f, 0.0f, 0.0f};
-    //     #pragma parallel for reduction(+: delta_P, delta_L)
-    //     for (auto res : result)
-    //     {
-    //         float v_in  = glm::dot((curr_state_d.v + glm::cross(omega, res.r_a)), res.n);
-    //         float j = (-(1 + k_restitution) * v_in)
-    //             / ((1/k_hexahedron_mass) + glm::dot(res.n, (moment_of_inertia_inverse * glm::cross(glm::cross(res.r_a, res.n), res.r_a))));
-    //         glm::vec3 J = j * res.n;
-    //         delta_P += J;
-    //         delta_L += glm::cross(res.r_a, J);
-    //     }
+    }
 
-    //     return 
-    //     {
-    //         curr_state.x,
-    //         curr_state.q,
-    //         curr_state.P += delta_P,
-    //         curr_state.L += delta_L
-    //     };
-    // }
+    void compute_neighborhood()
+    {
+        glm::vec3 *pos = &particles.get_particle_position()[0];
+        kdtree.Build(k_num_particle, pos);
+        for(auto i : neighborhood) { i.clear(); }
 
-    // state_d F(state st)
-    // {
-    //     state_d st_dt;
+        #pragma omp parallel for 
+        for (int i = 0; i < k_num_particle; i++)
+        {
+            kdtree.GetPoints(i, particles.get_particle_position().at(i), k_sph_kernal_s, compute_neighborhood_callback);
+        }
+    }
 
-    //     st_dt.v = st.P / k_hexahedron_mass;
+    void compute_density()
+    {
+    }
 
-    //     glm::mat3 R = glm::toMat3(st.q);
+    static void compute_neighborhood_callback(unsigned int target_index, unsigned int index, glm::vec3 const &p, float distanceSquared, float &radiusSquared)
+    {
+        neighborhood[target_index].push_back(index);
+    }
+    
 
-    //     glm::mat3 moment_of_inertia_inverse = R * glm::inverse(rigid_hexahedron.get_moment_of_inertia()) * glm::transpose(R);
-    //     glm::vec3 omega = moment_of_inertia_inverse * st.L;
-        
-    //     st_dt.q_d = 0.5f * glm::quat(0, omega) * st.q;
-
-    //     st_dt.P_d = compute_body_force() + compute_point_force(); // sum of forces
-    //     st_dt.L_d = compute_torque(); // sum of torques
-
-    //     return st_dt;
-    // }
-
-    // glm::vec3 compute_body_force()
-    // {
-    //     return k_hexahedron_mass * k_gravity;   // only gravity here for now
-    // }
-
-    // glm::vec3 compute_point_force()
-    // {
-    //     return {0, 0, 0};
-    // }
-
-    // glm::vec3 compute_torque()
-    // {
-    //     return {0, 0, 0};
-    // }
 };
 
 #endif // SOLVER_H_
