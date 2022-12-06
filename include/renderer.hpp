@@ -27,12 +27,12 @@ float refresh_interval = (1/30);
 // View parameters
 float theta = 0.0;
 float phi = 0.0;
-float camradius = 5.0;
+float camradius = 6.0;
 float cameraspeed = 0.5;
 
 float camX = camradius;
-float camY = 0.0;
-float camZ = 0.0;
+float camY = 2.5;
+float camZ = 1.5;
 
 // Allow window resizing
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -200,7 +200,7 @@ public:
     {
         while(!glfwWindowShouldClose(window) && !timer.is_time_to_stop())
         {
-            processInput(window);
+            // processInput(window);
             glfwPollEvents();
 
             if (timer.is_time_to_draw()) 
@@ -209,11 +209,8 @@ public:
                 update_particle_position();
                 draw();
             }
-
-
             sovler.compute_next_state();
             timer.update_simulation_time();
-            break;
         }
         delete_GLBuffers();
         glfwTerminate();
@@ -240,7 +237,7 @@ public:
             glDrawArrays(GL_TRIANGLES, 0, 36);
         
         glBindVertexArray(particle_vao);
-        // #pragma parallel for 
+        #pragma parallel for 
         for(int i = 0; i < k_num_particle; i++)
         {
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMatrices[i]));
@@ -253,7 +250,7 @@ public:
 
     void update_particle_position()
     {
-        #pragma omp parallel for
+        #pragma omp parallel for private(model)
         for (int i = 0; i < k_num_particle; i++)
         {
             model = glm::mat4(1.0f);

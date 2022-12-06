@@ -1,10 +1,13 @@
 #ifndef GL_OBJECT_HPP_
 #define GL_OBJECT_HPP_
 
+#include "common.hpp"
+
 namespace GLObj
 {
 
-float br = 0.01; // ball radius
+// float br = 0.02; // ball radius
+float br = k_particle_radius / (k_world_edge_size / 2);
 float particle[] = {
     // positions 
      br,  0,  0, // triangle 1
