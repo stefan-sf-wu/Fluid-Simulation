@@ -77,7 +77,7 @@ private:
         {
             gl_color.at(i) = {153/255, 255/255, 255/255};
             position.at(i) = rand_generator.generate_random_uniform_vec3(0, k_world_edge_size);
-            velocity.at(i) = {0.0f, 0.0f, 0.0f};
+            velocity.at(i) = {0.0f, 0.0f, -20.0f};
         }
     }
 };

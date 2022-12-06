@@ -45,7 +45,7 @@ inline float calculate_signed_distance(int i, glm::vec3 &pos)
     return glm::dot(box_plain[i].normal, v);
 }
 
-void detect_collision(glm::vec3 &pos, glm::vec3 &next_pos, glm::vec3 &vel, glm::vec3 &next_vel) 
+result detect_collision(glm::vec3 &pos, glm::vec3 &next_pos, glm::vec3 &vel, glm::vec3 &next_vel) 
 {
     float d, next_d;
     glm::vec3 new_next_vel, new_next_pos, v_n, v_t;
@@ -61,11 +61,17 @@ void detect_collision(glm::vec3 &pos, glm::vec3 &next_pos, glm::vec3 &vel, glm::
             v_n = glm::dot(next_vel, box_plain[i].normal) * box_plain[i].normal;
             v_t = next_vel - v_n;
             new_next_vel = - v_n + v_t;
+
+
+            // print_vec(new_next_pos, "new pos");
+            // print_vec(new_next_vel, "new vel");
             
-            next_pos = new_next_pos;
-            next_vel = new_next_vel;
+            // next_pos = new_next_pos;
+            // next_vel = new_next_vel;
+            return {new_next_pos, new_next_vel};
         }
     }
+    return null_result;
 }
 
 // result detect_collision(glm::vec3 &pos, glm::vec3 &next_pos, glm::vec3 &vel, glm::vec3 &next_vel) 

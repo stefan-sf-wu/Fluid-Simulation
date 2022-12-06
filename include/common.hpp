@@ -14,7 +14,7 @@ const char k_project_name[] = "FLUID SIMULATION";
 // World Params --------------------------------------------------------------------------//
 const int k_world_edge_size = 32;
 const glm::vec3 k_gravity_acceleration = {0.0f, 0.0f, -9.8f};
-const unsigned int k_num_particle = 10;
+const unsigned int k_num_particle = 1;
 
 // Timer --------------------------------------------------------------------//
 const float k_time_step = 0.01;                 // sec

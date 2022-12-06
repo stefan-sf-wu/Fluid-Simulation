@@ -82,16 +82,22 @@ private:
             particles.next_velocity.at(i) = particles.velocity.at(i) 
                 + (particles.acceleration.at(i) + particles.next_acceleration.at(i)) * k_time_step / 2.0f;
         }
-        particles.velocity = particles.next_velocity;
-        particles.acceleration = particles.next_acceleration;
-        particles.position = particles.next_position;
-        // #pragma omp parallel for
-        // for (int i = 0; i < k_num_particle; i++)
-        // {
-        //     collision::detect_collision(particles.position.at(i), particles.next_position.at(i),
-        //                                 particles.velocity.at(i), particles.next_velocity.at(i));
-        // }
         
+        #pragma omp parallel for
+        for (int i = 0; i < k_num_particle; i++)
+        {
+            collision::result ret = collision::detect_collision(particles.position.at(i), particles.next_position.at(i),
+                                                                particles.velocity.at(i), particles.next_velocity.at(i));
+            if (ret != collision::null_result)
+            {
+                particles.next_position.at(i) = ret.new_pos;
+                particles.next_velocity.at(i) = ret.new_vel;
+            }
+        }
+
+        particles.position = particles.next_position;
+        particles.velocity = particles.next_velocity;
+        particles.acceleration = particles.next_acceleration;        
     }
 
     void integrated_by_ex_euler() {}
@@ -107,7 +113,7 @@ private:
         std::fill(particles.force.begin(), particles.force.end(), glm::vec3({0.0f, 0.0f, 0.0f}));
         // compute_force_pressure();
         // compute_force_diffusion();
-        compute_force_gravity();
+        // compute_force_gravity();
         // compute_force_surface_tension();
     }
 
