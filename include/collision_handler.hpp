@@ -56,45 +56,17 @@ result detect_collision(glm::vec3 &pos, glm::vec3 &next_pos, glm::vec3 &vel, glm
 
         if (std::signbit(d) != std::signbit(next_d))
         {
-            new_next_pos = next_pos - 2.0f * next_d * box_plain[i].normal;
+            new_next_pos = next_pos - 1.5f * next_d * box_plain[i].normal;
 
             v_n = glm::dot(next_vel, box_plain[i].normal) * box_plain[i].normal;
             v_t = next_vel - v_n;
-            new_next_vel = - v_n + v_t;
+            new_next_vel = - 0.5f * v_n + v_t;
 
-
-            // print_vec(new_next_pos, "new pos");
-            // print_vec(new_next_vel, "new vel");
-            
-            // next_pos = new_next_pos;
-            // next_vel = new_next_vel;
             return {new_next_pos, new_next_vel};
         }
     }
     return null_result;
 }
-
-// result detect_collision(glm::vec3 &pos, glm::vec3 &next_pos, glm::vec3 &vel, glm::vec3 &next_vel) 
-// {
-//     float d, next_d;
-//     glm::vec3 new_next_vel, new_next_pos, v_n, v_t;
-//     for(int i = 0; i < 6; i++)
-//     {
-//         d = calculate_signed_distance(i, pos);
-//         next_d = calculate_signed_distance(i, next_pos);
-
-//         if (std::signbit(d) != std::signbit(next_d))
-//         {
-//             new_next_pos = next_pos - 2.0f * next_d * box_plain[i].normal;
-//             v_n = glm::dot(new_next_vel, box_plain[i].normal) * box_plain[i].normal;
-//             v_t = next_vel - v_n;
-//             new_next_vel = - v_n + v_t;
-
-//             return {new_next_pos, new_next_vel};
-//         }
-//     }
-//     return null_result;
-// }
 
 } // Collision
 

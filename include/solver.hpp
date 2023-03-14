@@ -13,6 +13,7 @@
 #include "common.hpp"
 #include "particle.hpp"
 #include "collision_handler.hpp"
+#include "velocity_field.hpp"
 
 class Solver
 {
@@ -66,7 +67,6 @@ private:
                 + particles.acceleration.at(i) * (float)std::pow(k_time_step, 2) / 2.0f;
         }
         
-
         compute_applied_forces();   // using next_position
 
         #pragma omp parallel for
@@ -111,10 +111,10 @@ private:
         compute_pressure();
 
         std::fill(particles.force.begin(), particles.force.end(), glm::vec3({0.0f, 0.0f, 0.0f}));
-        // compute_force_pressure();
-        // compute_force_diffusion();
-        // compute_force_gravity();
-        // compute_force_surface_tension();
+        compute_force_pressure();
+        compute_force_diffusion();
+        compute_force_gravity();
+        compute_force_surface_tension();
     }
 
     void compute_neighborhood()
@@ -169,15 +169,8 @@ private:
                 pressure_gradient += k_particle_mass 
                     * (float)((particles.density.at(i) / std::pow(particles.density.at(j), 2)) + (particles.density.at(j) / std::pow(particles.density.at(i), 2))) 
                     * sph_pressure_kernel_gradient(particles.next_position.at(i) - particles.next_position.at(j));
-                
-                if (i==0) 
-                {
-                    // print_vec(particles.next_position.at(i) - particles.next_position.at(j), "pos i - j");
-                    print_vec(sph_pressure_kernel_gradient(particles.next_position.at(i) - particles.next_position.at(j)));
-                }
             }
-            // std::cout << std::endl;
-            particles.force.at(i) -= particles.density.at(i) * pressure_gradient;
+            particles.force.at(i) -= 0.0002f * particles.density.at(i) * pressure_gradient;
         }
     }
 
@@ -190,11 +183,13 @@ private:
             for (auto j : neighborhood.at(i))
             {
                 if (i == j) continue;
-                laplacian +=  (0.0f) // u_j - u_i
-                    * (k_particle_mass / particles.density.at(j))
+               
+                laplacian += (velocity_field::electric_field(particles.next_position.at(j)) - velocity_field::electric_field(particles.next_position.at(i)))
+                    * (k_particle_mass / particles.density.at(i))
                     * sph_diffusion_kernel_laplacian(particles.next_position.at(i) - particles.next_position.at(j));
             }
-            particles.force.at(i) += k_fluid_property.dynamic * laplacian;
+
+            particles.force.at(i) += 0.01f * k_fluid_property.dynamic * laplacian;
         }
     }
 
@@ -214,18 +209,16 @@ private:
         {
             glm::vec3 surface_normal = {0.0f, 0.0f, 0.0f};
             float laplacian = 0.0f;
-
             for (auto j : neighborhood.at(i)) 
             {
                 if (i == j) continue;
-                surface_normal += k_particle_mass / particles.density.at(j) * sph_default_kernel_gradient(particles.next_position.at(i) - particles.next_position.at(j)); 
+                surface_normal += (k_particle_mass / particles.density.at(j)) * sph_default_kernel_gradient(particles.next_position.at(i) - particles.next_position.at(j)); 
                 laplacian += (k_particle_mass / particles.density.at(j)) * sph_default_kernel_laplacian(particles.next_position.at(i) - particles.next_position.at(j));
             }
             surface_normal = glm::normalize(surface_normal);
-
             if(glm::length(surface_normal) > k_surface_tension_level_threshold)
             {
-                particles.force.at(i) -= k_fluid_property.surface_tension * surface_normal * laplacian ;
+                particles.force.at(i) -= 0.01f * k_fluid_property.surface_tension * surface_normal * laplacian ;
             }
         }
 

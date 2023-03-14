@@ -21,6 +21,6 @@ int main()
 /**
  *    (\_/)
  *    ( •_•)  
- *    / > "Help me"
+ *    / > "GOD PLEASE HELP ME"
  * 
  */

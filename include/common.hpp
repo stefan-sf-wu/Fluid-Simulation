@@ -14,7 +14,8 @@ const char k_project_name[] = "FLUID SIMULATION";
 // World Params --------------------------------------------------------------------------//
 const int k_world_edge_size = 32;
 const glm::vec3 k_gravity_acceleration = {0.0f, 0.0f, -9.8f};
-const unsigned int k_num_particle = 1;
+const unsigned int k_num_particle_each_side = 70;
+const unsigned int k_num_particle = std::pow(k_num_particle_each_side, 2);
 
 // Timer --------------------------------------------------------------------//
 const float k_time_step = 0.01;                 // sec
@@ -41,11 +42,11 @@ std::map<material, property> material_property_map =
     { material::air, {1.18, 18.7, 15.8, 0} }
 };
 
-material k_fluid_material = material::water;
+material k_fluid_material = material::mercury;
 property k_fluid_property = material_property_map[k_fluid_material];
 const float k_fluid_stiffness = 1.0f;
 
-const float k_surface_tension_level_threshold = 1.0f;
+const float k_surface_tension_level_threshold = 0.0f;
 
 const float k_fluid_volume = std::pow(k_world_edge_size, 3) / 2;  // fill half of the box
 const float k_particle_mass = k_fluid_property.density * k_fluid_volume / k_num_particle;

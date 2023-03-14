@@ -7,7 +7,7 @@ namespace GLObj
 {
 
 // float br = 0.02; // ball radius
-float br = k_particle_radius / (k_world_edge_size / 2);
+float br = k_particle_radius / (k_world_edge_size / 1.5);
 float particle[] = {
     // positions 
      br,  0,  0, // triangle 1

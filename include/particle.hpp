@@ -2,6 +2,7 @@
 #define PARTICLE_HPP_
 
 #include <vector>
+#include <cmath>
 
 #include <glm/glm.hpp>
 #include <omp.h>
@@ -45,17 +46,7 @@ public:
     {
         initialize_particle_state();
     };
-
-    // inline std::vector<glm::vec3> &get_particle_position() { return position_; }
-    // inline std::vector<glm::vec3> &get_particle_velocity() { return velocity_; }
-    // inline std::vector<glm::vec3> &get_particle_acceleration() { return acceleration_; }
-    // inline std::vector<glm::vec3> &get_particle_force() { return force_; }
-    // inline std::vector<glm::vec3> &get_particle_density() { return density_; }
-
-    // inline void set_particle_position(std::vector<glm::vec3> &new_position) { position_ = new_position; }
-    // inline void set_particle_velocity(std::vector<glm::vec3> &new_velocity) { velocity_ = new_velocity; }
-    // inline void set_particle_acceleration(std::vector<glm::vec3> &new_acceleration) { acceleration_ = new_acceleration; }
-
+    
     std::vector<glm::vec3> &get_gl_particle_position() 
     { 
         #pragma omp parallel for
@@ -77,7 +68,7 @@ private:
         {
             gl_color.at(i) = {153/255, 255/255, 255/255};
             position.at(i) = rand_generator.generate_random_uniform_vec3(0, k_world_edge_size);
-            velocity.at(i) = {0.0f, 0.0f, -20.0f};
+            velocity.at(i) = {0.0f, 0.0f, 0.0f};
         }
     }
 };
